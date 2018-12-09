@@ -44,7 +44,7 @@ def pretreatment(file):
     box = (startingCol,startingRow,endCol,endRow) #切割图片，把开始部分和结束部分的空白行/列切掉，切割完后
     newima = ima.crop(box).resize((32,32))#把切割后图片等比例转换成32*32像素图片
     names = file.split('/')
-    newima.save("c:/python/temp/"+names[len(names)-1]) #保存一个临时文件以用来检查处理后的图片是否正确
+    newima.save("temp/"+names[len(names)-1]) #保存一个临时文件以用来检查处理后的图片是否正确
     im = numpy.array(newima) #重新用二维数组保存图片像素
     returnV =[] # 最终函数返回值是一个1024（32*32）位的一维数组，就是把图片像素按行展开来。每个元素值是0或1。
     for i in im:
@@ -105,13 +105,13 @@ def classnumCut1(fileName):
 def trainingDataSet():
     t1 = time.time()	
     hwLabels = [] #用来输出分类列表
-    trainingFileList = listdir('c:/python/test')           #从这个目录里读取已分好类的训练图片
+    trainingFileList = listdir('test')           #从这个目录里读取已分好类的训练图片
     m = len(trainingFileList)
     trainingMat = numpy.zeros((m,1024))                          #m*1024个数据的训练集，每个元素初始化为0
     for i in range(m):
         fileNameStr = trainingFileList[i]
         hwLabels.append(classnumCut1(fileNameStr))#hwLabels记录了每个文件代表的数字分类
-        trainingMat[i,:] = pretreatment('c:/python/test/%s' % fileNameStr)#trainingMat的每一行保存了0/1代表的处理后的一张图片
+        trainingMat[i,:] = pretreatment('test/%s' % fileNameStr)#trainingMat的每一行保存了0/1代表的处理后的一张图片
     t2 = time.time()
     print("Training time: %.2fmin, %.4fs."%((t2-t1)//60,(t2-t1)%60))      #训练耗时
 
@@ -120,14 +120,14 @@ def trainingDataSet():
 #测试函数
 def test():
     hwLabels,trainingMat = trainingDataSet()    #构建训练集
-    testFileList = listdir('c:/python/tt')    #从这个目录里读取要测试的图片
+    testFileList = listdir('tt')    #从这个目录里读取要测试的图片
     errorCount = 0.0                            #用来记录错误的次数
     mTest = len(testFileList)                   #用来记录测试的次数
     t1 = time.time()							#用来记录测试时间
     for i in range(mTest):						
         fileNameStr = testFileList[i]
         classNumStr = classnumCut1(fileNameStr)	#测试集也是预先分好类的
-        vectorUnderTest = pretreatment('c:/python/tt/%s' % fileNameStr) #预处理图片        
+        vectorUnderTest = pretreatment('tt/%s' % fileNameStr) #预处理图片        
         classifierResult = classify(vectorUnderTest, trainingMat, hwLabels, 3)#调用knn算法进行分类
         #打印分类结果
         print("the test result is: %d, the actual number is: %d %s" % (classifierResult, classNumStr, classifierResult==classNumStr))

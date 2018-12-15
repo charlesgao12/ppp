@@ -1,77 +1,91 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Dec 12 14:31:28 2018
+Created on Wed Dec 12 14:32:11 2018
 
 @author: chael
 """
 
-import  socketserver
+import socket
 
 from tkinter import Tk,Frame,Text,END,Button,PhotoImage,Label,S,scrolledtext
 from time import strftime,localtime
+import time
 
 import threading
 from collections import deque
+ 
+ip = '127.0.0.1'
+port = 9000
 
-class Controller:
+class Client:
+
     msg_list =deque()
-    def add_handler(self,hdl):
-        self.handler = hdl
     
-    def received(self,msg):
-        print('received:'+msg)
-        msg_out = '!!!'
-        if msg == '!!!':#heartbeat, see if any msg need to send
-            if len(self.msg_list) >0:
-                msg_out =  self.msg_list.popleft()           
-        else:
-            self.handler(msg)
+    soc = None
+    
+    callback = None
 
-        self.conn.sendall(bytes(msg_out,encoding="utf-8"))
-        print('sent:'+msg_out)
-        
-        
+    def heartbeat(self):
+        msg = "!!!"#heartbeat
+        if len(self.msg_list) >0:
+            msg = self.msg_list.popleft()
+            
+        #print('now sending:'+msg)
+        self.soc.sendall(bytes(msg, encoding="utf-8"))
+    	
+
+
+
+    #this just add msg to the deque
     def sendmsg(self,msg):
+        print('add: '+msg)
         self.msg_list.append(msg)
         
         
-    def set_conn(self,con):
-        self.conn=con
+    def handle(self,msg):
+        self.callback(msg)
+        
+    def add_handler(self,cb):
+        self.callback=cb
+        
+    
+    def start_client(self):
+        self.soc = socket.socket()
+        
+        self.soc.connect((ip,port))
+        
+        ret_bytes = self.soc.recv(1024)
+        ret_str = str(ret_bytes,encoding="utf-8")
+        print('start: '+ret_str)
+        
+        while True:
+            self.heartbeat()
+        	
+
+            #self.soc.sendall(bytes(inp, encoding="utf-8"))
+            ret_bytes = self.soc.recv(1024)
+            ret_str = str(ret_bytes,encoding="utf-8")
+            #print('received: '+ret_str)
+            if ret_str == '!!!':#heartbeat
+            	pass
+            else:
+            	self.handle(ret_str)
+            time.sleep(0.01)
+            
 
             
-class Myserver:     
 
-        
-    def start(self,ctrl):        
-        class Handler(socketserver.BaseRequestHandler):      
-        
-            def handle(self):
-                conn = self.request
-                ctrl.set_conn(conn)
-                conn.sendall(bytes("success connected",encoding="utf-8"))
-                while True:
-                    ret_bytes = conn.recv(1024)
-                    ret_str = str(ret_bytes,encoding="utf-8")
-                    ctrl.received(ret_str)
-                    
-        
-        
-        server = socketserver.ThreadingTCPServer(("127.0.0.1",9000),Handler)
-        server.serve_forever()
-    
-    
+
 class Window:
     
     tk=Tk()
     
-    soc_serv = Myserver()
+    soc_client = Client()
     
-    ctrl = Controller()
-    
-    def run_serv(soc_serv,ctrl):
-        soc_serv.start(ctrl)
+    def run_client(soc_client):
+        soc_client.start_client()
         
-    t=threading.Thread(target=run_serv, args=(soc_serv,ctrl))
+    t=threading.Thread(target=run_client, args=(soc_client,))
     t.start()
     
     
@@ -82,21 +96,17 @@ class Window:
     frameLB = Frame(width=500, height=30)
     frameRT = Frame(width=380, height=500)
     
+    #txtMsgList=Text(frameLT)
     txtMsgList=scrolledtext.ScrolledText(width=70, height=25)
-    
-    
-   
-    
     txtMsg=Text(frameLC)
     
 
     def received(self,msg):
-        strtime="小红："+strftime("%Y-%m-%d %H:%M:%S",localtime())+"\n"
+        strtime="小明："+strftime("%Y-%m-%d %H:%M:%S",localtime())+"\n"
         self.txtMsgList.insert(END,strtime,'bluecolor')
         #0.0是0行0列到END，表示全部，END表示插入末端
         self.txtMsgList.insert(END,msg)
         self.txtMsgList.see(END)#scroll to the end
-        
 
  
     def sendMsg(self):
@@ -104,7 +114,7 @@ class Window:
         self.txtMsgList.insert(END,strtime,'greencolor')
         #0.0是0行0列到END，表示全部，END表示插入末端
         self.txtMsgList.insert(END,self.txtMsg.get('0.0',END))
-        self.ctrl.sendmsg(self.txtMsg.get('0.0',END))
+        self.soc_client.sendmsg(self.txtMsg.get('0.0',END))
         self.txtMsg.delete('0.0',END)
         self.txtMsgList.see(END)#scroll to the end
         
@@ -120,10 +130,10 @@ class Window:
         pass
     
     def add_handler(self, hdl):
-        self.ctrl.add_handler(hdl)
+        self.soc_client.add_handler(hdl)
         
     def start(self):
-        self.tk.title("千里马聊天室-小明")
+        self.tk.title("千里马聊天室-小红")
         # 创建frame容器
         
      
@@ -137,8 +147,7 @@ class Window:
         btnCancel=Button(self.frameLB,text="cancel",width=8,command=self.cancelMsg)
         myImage=PhotoImage(file="chat.PNG")
         label=Label(self.frameRT,image=myImage)
-        
-        charimg=PhotoImage(file="ming.PNG")
+        charimg=PhotoImage(file="hong.PNG")
         label1=Label(self.frameRT,image=charimg)
      
         #窗体布局
@@ -150,7 +159,6 @@ class Window:
      
         # 固定大小
         #self.frameLT.grid_propagate(0)
-        #self.txtMsgList.grid_propagate(0)
         self.frameLC.grid_propagate(0)
         self.frameLB.grid_propagate(0)
         self.frameRT.grid_propagate(0)
